@@ -20,11 +20,11 @@ void main_menu__(int sel)
 {
   
 }
-ListMenu main_menu();
+ListMenu main_menu("Menu principal", main_menu__, 3, main_menu_);
 
 void setup() {
-  // put your setup code here, to run once:
-
+  lcd.init();
+  awake();
 }
 
 void loop() {
