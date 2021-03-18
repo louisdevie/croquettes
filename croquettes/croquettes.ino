@@ -1,4 +1,4 @@
-﻿// bibliothèques pour le module RTC 
+// bibliothèques pour le module RTC 
 #include<Wire.h>
 #include "RTClib.h"
 // bibliothèque pour l'écran
@@ -13,6 +13,14 @@ int HOUR;
 int MINUTE;
 // objet du LCD
 LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+// menu principal
+String main_menu_[3] = {"Activ./Desact.", "Pogrammer", "Reglage heure"};
+void main_menu__(int sel)
+{
+  
+}
+ListMenu main_menu();
 
 void setup() {
   // put your setup code here, to run once:
