@@ -3,6 +3,8 @@
 #include "RTClib.h"
 // bibliothèque pour l'écran
 #include "LiquidCrystal_I2C.h"
+// bibliothèque pour gérer les menus
+#include "menus.h"
 
 // objet du module RTC
 RTC_DS1307 rtc_module;
@@ -25,13 +27,13 @@ void loop() {
 // mets à jour l'horloge du module RTC
 void RTCsetTime(int hour, int minute)
 {
-  rtc.adjust(DateTime(2021, 1, 1, hour, minute, 0));
+  rtc_module.adjust(DateTime(2021, 1, 1, hour, minute, 0));
 }
 
 // récupère le temps du module RTC
 void RTCgetTime()
 {
-  DateTime now = rtc.now();
+  DateTime now = rtc_module.now();
   HOUR = now.hour();
   MINUTE = now.minute();
 }
