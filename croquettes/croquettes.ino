@@ -4,7 +4,7 @@
 // bibliothèque pour l'écran
 #include "LiquidCrystal_I2C.h"
 // bibliothèque pour gérer les menus
-#include "menus.h"
+#include "menu.h"
 
 // objet du module RTC
 RTC_DS1307 rtc_module;
@@ -14,22 +14,54 @@ int MINUTE;
 // objet du LCD
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
+// codes des boutons
+const int REST = 0;
+const int CANCEL = 1;
+const int ENTER = 2;
+const int UP = 3;
+const int DOWN = 4;
+// statut des boutons
+int button = REST;
+int last_button = REST;
+
 // menu principal
+Menu main_menu;
 String main_menu_[3] = {"Activ./Desact.", "Pogrammer", "Reglage heure"};
 void main_menu__(int sel)
 {
-  
+  Serial.println(sel);
 }
-ListMenu main_menu("Menu principal", main_menu__, 3, main_menu_);
 
-void setup() {
+Menu menu;
+
+void setup()
+{
+  Serial.begin(9600);
   lcd.init();
+  lcd.createChar(NONE, NONE_CHAR);
+  lcd.createChar(LEFT, LEFT_CHAR);
+  lcd.createChar(RIGHT, RIGHT_CHAR);
+  lcd.createChar(UPDOWN, UPDOWN_CHAR);
   awake();
+
+  main_menu.init_list("Menu principal", main_menu__, 3, main_menu_);
+  menu = main_menu;
+  updateDisplay(menu.title(), menu.leftSymbol(), menu.content(), menu.rightSymbol());
 }
 
-void loop() {
-  // put your main code here, to run repeatedly:
-
+void loop()
+{
+  while(button==last_button) {button=checkButtons();}
+  last_button = button;
+  switch(button)
+  {
+    case REST: Serial.println("repos"); break;
+    case CANCEL: Serial.println("retour"); break;
+    case ENTER: Serial.println("entrée"); break;
+    case UP: Serial.println("haut/précédent"); break;
+    case DOWN: Serial.println("bas/suivant"); break;
+  }
+  delay(500);
 }
 
 // mets à jour l'horloge du module RTC
@@ -47,10 +79,19 @@ void RTCgetTime()
 }
 
 // récupère les touches pressées
-int checkButtons() {}
+int checkButtons()
+{
+  int val = analogRead(0);
+  if(val < 23) {return CANCEL;}
+  else if(val < 68) {return UP;}
+  else if(val < 111) {return ENTER;}
+  else if(val < 338) {return REST;}
+  else if(val < 785) {return DOWN;}
+  else {return REST;}
+}
 
 // màj le lcd
-void display(String header, byte leftChar, String content, byte rightChar)
+void updateDisplay(String header, byte leftChar, String content, byte rightChar)
 {
   lcd.clear();
   lcd.setCursor( 0, 0); lcd.print(header);
