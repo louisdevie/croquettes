@@ -22,17 +22,44 @@ const int UP = 3;
 const int DOWN = 4;
 // statut des boutons
 int button = REST;
-int last_button = REST;
+int lastButton = REST;
 
-// menu principal
-Menu main_menu;
-String main_menu_[3] = {"Activ./Desact.", "Pogrammer", "Reglage heure"};
-void main_menu__(int sel)
-{
-  Serial.println(sel);
-}
+bool awaken;
+int inactivity;
 
 Menu menu;
+
+Menu main_menu;
+Menu timeSetHr_menu;
+Menu timeSetMn_menu;
+
+String main_menu_[3] = {"Activ./Desact.", "Programmer", "Reglage heure"};
+void main_menu__(int sel)
+{
+  switch(sel)
+  {
+    case 2:
+      menu = timeSetHr_menu;
+      menu.setTo(HOUR);
+      break;
+    default:
+      Serial.println(sel);
+  }
+}
+
+void timeSetHr_menu__(int sel)
+{
+  RTCsetTime(sel, MINUTE);
+  menu = timeSetMn_menu;
+  menu.setTo(MINUTE);
+}
+
+void timeSetMn_menu__(int sel)
+{
+  RTCsetTime(HOUR, sel);
+  menu = main_menu;
+  RTCgetTime();
+}
 
 void setup()
 {
@@ -42,26 +69,63 @@ void setup()
   lcd.createChar(LEFT, LEFT_CHAR);
   lcd.createChar(RIGHT, RIGHT_CHAR);
   lcd.createChar(UPDOWN, UPDOWN_CHAR);
-  awake();
 
   main_menu.init_list("Menu principal", main_menu__, 3, main_menu_);
+  timeSetHr_menu.init_spinner("Regler l'heure", timeSetHr_menu__, 0, 23, 1, "h");
+  timeSetMn_menu.init_spinner("Regler l'heure", timeSetMn_menu__, 0, 59, 1, "min");
+  
   menu = main_menu;
   updateDisplay(menu.title(), menu.leftSymbol(), menu.content(), menu.rightSymbol());
+  standby();
 }
 
 void loop()
 {
-  while(button==last_button) {button=checkButtons();}
-  last_button = button;
-  switch(button)
+  if(awaken)
   {
-    case REST: Serial.println("repos"); break;
-    case CANCEL: Serial.println("retour"); break;
-    case ENTER: Serial.println("entrée"); break;
-    case UP: Serial.println("haut/précédent"); break;
-    case DOWN: Serial.println("bas/suivant"); break;
+    lastButton = button;
+    button=checkButtons();
+    if(button!=lastButton)
+    {
+      inactivity = 0;
+      switch(button)
+      {
+        case REST: Serial.println("repos"); break;
+        case CANCEL: Serial.println("retour"); break;
+        case ENTER:
+          menu.select();
+          updateDisplay(menu.title(), menu.leftSymbol(), menu.content(), menu.rightSymbol());
+          break;
+        case UP:
+          menu.next();
+          updateDisplay(menu.title(), menu.leftSymbol(), menu.content(), menu.rightSymbol());
+          break;
+        case DOWN:
+          menu.previous();
+          updateDisplay(menu.title(), menu.leftSymbol(), menu.content(), menu.rightSymbol());
+          break;
+      }
+    }
+    inactivity += 1;
+    if(inactivity > 100)
+    {
+      standby();
+    }
+    RTCgetTime();
+    delay(100);
   }
-  delay(500);
+  else
+  {
+    lastButton = button;
+    button=checkButtons();
+    if(button!=lastButton)
+    {
+      awake();
+      inactivity = 0;
+    }
+    RTCgetTime();
+    delay(1000);
+  }
 }
 
 // mets à jour l'horloge du module RTC
@@ -94,10 +158,13 @@ int checkButtons()
 void updateDisplay(String header, byte leftChar, String content, byte rightChar)
 {
   lcd.clear();
-  lcd.setCursor( 0, 0); lcd.print(header);
-  lcd.setCursor( 0, 1); lcd.write(leftChar);
-  lcd.setCursor( 1, 1); lcd.print(content);
-  lcd.setCursor(15, 1); lcd.write(rightChar);
+  lcd.setCursor( 0, 0);
+  lcd.print(header);
+  lcd.setCursor( 0, 1);
+  lcd.write(leftChar);
+  lcd.print(content);
+  lcd.setCursor(15, 1);
+  lcd.write(rightChar);
 }
 
 // réveile le lcd
@@ -105,6 +172,7 @@ void awake()
 {
   lcd.display();
   lcd.backlight();
+  awaken = true;
 }
 
 // met le lcd en veille
@@ -112,6 +180,7 @@ void standby()
 {
   lcd.noDisplay();
   lcd.noBacklight();
+  awaken = false;
 }
 
 // distribue *amount* doses de croquettes
