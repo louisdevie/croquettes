@@ -2,5 +2,7 @@
 *.mvdx
 *.png
 *.odg
+*.odp
+*.pptx
 *.db
 /Pi*/

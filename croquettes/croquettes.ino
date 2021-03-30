@@ -15,17 +15,19 @@ int MINUTE;
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 // codes des boutons
-const int REST = 0;
-const int CANCEL = 1;
-const int ENTER = 2;
-const int UP = 3;
-const int DOWN = 4;
+const byte REST = 0;
+const byte CANCEL = 1;
+const byte ENTER = 2;
+const byte UP = 3;
+const byte DOWN = 4;
 // statut des boutons
-int button = REST;
-int lastButton = REST;
+byte button = REST;
+byte lastButton = REST;
 
 bool awaken;
 int inactivity;
+
+byte menubuffer;
 
 Menu menu;
 
@@ -33,30 +35,41 @@ Menu main_menu;
 Menu timeSetHr_menu;
 Menu timeSetMn_menu;
 
-String main_menu_[3] = {"Activ./Desact.", "Programmer", "Reglage heure"};
-void main_menu__(int sel)
+void doNothing() {}
+
+String main_options[3] = {"Activ./Desact.", "Programmer", "Reglage heure"};
+void main_ok(int sel)
 {
   switch(sel)
   {
     case 2:
       menu = timeSetHr_menu;
       menu.setTo(HOUR);
+      menu.setUnit(":"+String(MINUTE));
       break;
     default:
       Serial.println(sel);
   }
 }
 
-void timeSetHr_menu__(int sel)
+void timeSetHr_ok(int sel)
 {
-  RTCsetTime(sel, MINUTE);
+  menubuffer = sel;
   menu = timeSetMn_menu;
   menu.setTo(MINUTE);
+  if(HOUR < 10) {menu.setUnit(String(menubuffer)+":", 2);}
+  else {menu.setUnit(String(menubuffer)+":", 3);}
 }
 
-void timeSetMn_menu__(int sel)
+void timeSet_cancel()
 {
-  RTCsetTime(HOUR, sel);
+  menubuffer = 0;
+  menu = main_menu;
+}
+
+void timeSetMn_ok(int sel)
+{
+  RTCsetTime(menubuffer, sel);
   menu = main_menu;
   RTCgetTime();
 }
@@ -70,9 +83,9 @@ void setup()
   lcd.createChar(RIGHT, RIGHT_CHAR);
   lcd.createChar(UPDOWN, UPDOWN_CHAR);
 
-  main_menu.init_list("Menu principal", main_menu__, 3, main_menu_);
-  timeSetHr_menu.init_spinner("Regler l'heure", timeSetHr_menu__, 0, 23, 1, "h");
-  timeSetMn_menu.init_spinner("Regler l'heure", timeSetMn_menu__, 0, 59, 1, "min");
+  main_menu.init_list("Menu principal", main_ok, doNothing, 3, main_options);
+  timeSetHr_menu.init_spinner("Heure :", timeSetHr_ok, timeSet_cancel, 0, 23, 1, ":00");
+  timeSetMn_menu.init_spinner("Minutes :", timeSetMn_ok, timeSet_cancel, 0, 59, 1, "0:");
   
   menu = main_menu;
   updateDisplay(menu.title(), menu.leftSymbol(), menu.content(), menu.rightSymbol());
@@ -91,7 +104,9 @@ void loop()
       switch(button)
       {
         case REST: Serial.println("repos"); break;
-        case CANCEL: Serial.println("retour"); break;
+        case CANCEL:
+          menu.cancel();
+          updateDisplay(menu.title(), menu.leftSymbol(), menu.content(), menu.rightSymbol());
         case ENTER:
           menu.select();
           updateDisplay(menu.title(), menu.leftSymbol(), menu.content(), menu.rightSymbol());
@@ -106,8 +121,8 @@ void loop()
           break;
       }
     }
-    inactivity += 1;
-    if(inactivity > 100)
+    inactivity ++;
+    if(inactivity > 300)
     {
       standby();
     }
