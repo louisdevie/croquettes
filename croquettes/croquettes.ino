@@ -4,23 +4,28 @@
 #include "RTClib.h"
 // bibliothèque pour l'écran
 #include "LiquidCrystal_I2C.h"
+// bibliothèque pour le moteur
+#include "Stepper.h"
 // module pour gérer les menus
 #include "menu.h"
 
-// objet du module RTC
+// instance du module RTC
 RTC_DS1307 rtc_module;
 // heure
 int HOUR;
 int MINUTE;
-// objet du LCD
+// instance du LCD
 LiquidCrystal_I2C lcd(0x27, 16, 2);
+// instance du moteur
+// 1 tour = 60 pas, broches 8 à 11
+Stepper stepper(60, 8, 10, 9, 11);
 
 // codes des boutons
-const byte REST = 0;
-const byte CANCEL = 1;
-const byte ENTER = 2;
-const byte UP = 3;
-const byte DOWN = 4;
+const byte REST = 0; // repos
+const byte CANCEL = 1; // retour 
+const byte ENTER = 2; // entrée
+const byte UP = 3; // haut
+const byte DOWN = 4; // bas
 // statut des boutons
 byte button = REST;
 byte lastButton = REST;
@@ -29,6 +34,7 @@ byte lastButton = REST;
 bool awaken;
 // temps écoulé depuis la dernière action de l'utilisateur
 int inactivity;
+// distibution activée
 bool dispensing = true;
 
 // tampon entre deux menus
@@ -66,7 +72,6 @@ void main_ok(int sel)
   }
 }
 
-<<<<<<< HEAD
 String switch_options[2] = {"Activee", "Desactivee"};
 void switch_ok(int sel)
 {
@@ -81,9 +86,7 @@ void switch_ok(int sel)
   menu = main_menu;
 }
 
-=======
 // réglage de l'heure
->>>>>>> 2cac814216678cb8833415ed3e1828d502e0d1da
 void timeSetHr_ok(int sel)
 {
   menubuffer = sel;
@@ -108,7 +111,7 @@ void timeSetMn_ok(int sel)
 // initialisation
 void setup()
 {
-  // déboguage
+  // pour le déboguage
   Serial.begin(9600);
   // initialisation de LCD et ajout des caractères spéciaux
   lcd.init();
@@ -116,6 +119,8 @@ void setup()
   lcd.createChar(LEFT, LEFT_CHAR);
   lcd.createChar(RIGHT, RIGHT_CHAR);
   lcd.createChar(UPDOWN, UPDOWN_CHAR);
+  // initialisation du moteur
+  stepper.setSpeed(64); // 1 RPM
 
   // initialisation des menus
   main_menu.init_list("Menu principal", main_ok, doNothing, 3, main_options);
@@ -128,6 +133,8 @@ void setup()
   updateDisplay();
   // ... en mode veille
   standby();
+  delay(3000);
+  dispense(3);
 }
 
 // boucle
@@ -145,16 +152,11 @@ void loop()
       inactivity = 0;
       switch(button)
       {
-<<<<<<< HEAD
-        case REST: break;
-=======
         // repos
-        case REST:
-          Serial.println("repos"); break;
+        case REST: break;
         // bouton retour
->>>>>>> 2cac814216678cb8833415ed3e1828d502e0d1da
         case CANCEL:
-          menu.cancel(); updateDisplay(); break
+          menu.cancel(); updateDisplay(); break;
         // bouton entrée
         case ENTER:
           menu.select(); updateDisplay(); break;
@@ -188,8 +190,10 @@ void loop()
     {
       // passage en mode actif
       awake();
+      updateDisplay();
       inactivity = 0;
     }
+    
     // MàJ l'heure
     RTCgetTime();
     // boucle une fois par seconde
@@ -241,6 +245,14 @@ void updateDisplay()
   lcd.setCursor(15, 1);
   lcd.write(menu.rightSymbol());
 }
+void dispensingInfo()
+{
+  lcd.clear();
+  lcd.setCursor(2, 0);
+  lcd.print("Distribution");
+  lcd.setCursor(2, 1);
+  lcd.print("en cours ...");
+}
 
 // réveile le lcd
 void awake()
@@ -262,5 +274,23 @@ void standby()
   awaken = false;
 }
 
+// tourne le moteur d'un quart de tour
+void rotate()
+{
+  for(int i=0; i<50; i++)
+  {
+    stepper.step(10);
+  }
+}
 // distribue *amount* doses de croquettes
-void dispense(int amount) {}
+void dispense(int amount)
+{
+  awake();
+  dispensingInfo();
+  for(int i=0; i<amount; i++)
+  {
+    rotate();
+    delay(1000);
+  }
+  standby();
+}
