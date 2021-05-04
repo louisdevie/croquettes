@@ -1,8 +1,5 @@
-*.pdf
-*.mvdx
-*.png
-*.odg
-*.odp
-*.pptx
-*.db
-/Pi*/
+/*.*
+/*/
+!/croquettes
+!/menu
+!/test_rtc

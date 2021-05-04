@@ -1,5 +1,5 @@
-#ifndef menus_h
-#define menus_h
+#ifndef menu_h
+#define menu_h
 #include "Arduino.h"
 #include "LiquidCrystal_I2C.h"
 
@@ -48,44 +48,34 @@ const byte UPDOWN_CHAR[8] = {
 	B00100,
 };
 
-class ListMenu
+class Menu
 {
 	public:
-		ListMenu(String name, void (*f)(int), int nb_choices, String choices[]);
+		Menu();
+		void init_list(String name, void (*f)(int), void (*g)(), int nb_choices, String choices[]);
+		void init_spinner(String name, void (*f)(int), void (*g)(), int min, int max, int step, String unit, byte sep=0, int filldigits=0);
 		String title();
 		String content();
 		byte leftSymbol();
 		byte rightSymbol();
 		void next();
 		void previous();
+		void setTo(int v);
+		void setUnit(String newunit, byte sep=0);
 		void select();
+		void (*cancel)();
 	private:
-		String _name;
-		void (*_action)(int);
-		int _size;
-		String *_choices;
-		int _current;
-};
-
-class SpinnerMenu
-{
-	public:
-		SpinnerMenu(String name, void (*f)(int), int min, int max, int step, String unit, int defval=0);
-		String title();
-		String content();
-		byte leftSymbol();
-		byte rightSymbol();
-		void next();
-		void previous();
-		void select();
-	private:
+		unsigned int _type;
 		String _name;
 		void (*_action)(int);
 		int _min;
 		int _max;
+		String *_choices;
 		int _step;
-		int _val;
+		int _current;
 		String _unit;
+		byte _sep;
+		bool _filldigits;
 };
 
 #endif

@@ -1,5 +1,4 @@
 // bibliothèques pour le module RTC 
-#include<Wire.h>
 #include "RTClib.h"
 // bibliothèque pour l'écran
 #include "LiquidCrystal_I2C.h"
@@ -26,12 +25,14 @@ byte lastButton = REST;
 
 bool awaken;
 int inactivity;
+bool dispensing = true;
 
 byte menubuffer;
 
 Menu menu;
 
 Menu main_menu;
+Menu switch_menu;
 Menu timeSetHr_menu;
 Menu timeSetMn_menu;
 
@@ -42,6 +43,10 @@ void main_ok(int sel)
 {
   switch(sel)
   {
+    case 0:
+      menu = switch_menu;
+      menu.setTo(!dispensing);
+      break;
     case 2:
       menu = timeSetHr_menu;
       menu.setTo(HOUR);
@@ -50,6 +55,20 @@ void main_ok(int sel)
     default:
       Serial.println(sel);
   }
+}
+
+String switch_options[2] = {"Activee", "Desactivee"};
+void switch_ok(int sel)
+{
+  if(sel)
+  {
+    dispensing = false;
+  }
+  else
+  {
+    dispensing = true;
+  }
+  menu = main_menu;
 }
 
 void timeSetHr_ok(int sel)
@@ -84,8 +103,9 @@ void setup()
   lcd.createChar(UPDOWN, UPDOWN_CHAR);
 
   main_menu.init_list("Menu principal", main_ok, doNothing, 3, main_options);
-  timeSetHr_menu.init_spinner("Heure :", timeSetHr_ok, timeSet_cancel, 0, 23, 1, ":00");
-  timeSetMn_menu.init_spinner("Minutes :", timeSetMn_ok, timeSet_cancel, 0, 59, 1, "0:");
+  switch_menu.init_list("Distribution ...", switch_ok, doNothing, 2, switch_options);
+  timeSetHr_menu.init_spinner("Heure :", timeSetHr_ok, timeSet_cancel, 0, 23, 1, ":00", 2);
+  timeSetMn_menu.init_spinner("Minutes :", timeSetMn_ok, timeSet_cancel, 0, 59, 1, "00:", 2);
   
   menu = main_menu;
   updateDisplay(menu.title(), menu.leftSymbol(), menu.content(), menu.rightSymbol());
@@ -103,7 +123,7 @@ void loop()
       inactivity = 0;
       switch(button)
       {
-        case REST: Serial.println("repos"); break;
+        case REST: break;
         case CANCEL:
           menu.cancel();
           updateDisplay(menu.title(), menu.leftSymbol(), menu.content(), menu.rightSymbol());
