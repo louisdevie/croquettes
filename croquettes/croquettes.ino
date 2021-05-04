@@ -14,6 +14,10 @@ RTC_DS1307 rtc_module;
 // heure
 int HOUR;
 int MINUTE;
+// programmes de distribution
+int PROG_NONE[3][2] = {{-1, -1}, {-, -1}, {-1, -1}};
+int PROG[3][2];
+int PROGAMOUNT;
 // instance du LCD
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 // instance du moteur
@@ -34,6 +38,7 @@ byte lastButton = REST;
 bool awaken;
 // temps écoulé depuis la dernière action de l'utilisateur
 int inactivity;
+float lastDispense;
 // distibution activée
 bool dispensing = true;
 
@@ -119,8 +124,13 @@ void setup()
   lcd.createChar(LEFT, LEFT_CHAR);
   lcd.createChar(RIGHT, RIGHT_CHAR);
   lcd.createChar(UPDOWN, UPDOWN_CHAR);
+  
   // initialisation du moteur
   stepper.setSpeed(64); // 1 RPM
+
+  // programme par défaut
+  PROG = PROG_NONE;
+  PROGAMOUNT = 1;
 
   // initialisation des menus
   main_menu.init_list("Menu principal", main_ok, doNothing, 3, main_options);
@@ -133,8 +143,9 @@ void setup()
   updateDisplay();
   // ... en mode veille
   standby();
-  delay(3000);
-  dispense(3);
+
+  inactivity = 0;
+  lastdispense = 300;
 }
 
 // boucle
@@ -193,7 +204,10 @@ void loop()
       updateDisplay();
       inactivity = 0;
     }
-    
+    if(lastDispense > 300 && dispensing && matchProg())
+    {
+      dispense(
+    }
     // MàJ l'heure
     RTCgetTime();
     // boucle une fois par seconde
@@ -272,6 +286,20 @@ void standby()
   // éteinds le rétroéclairage
   lcd.noBacklight();
   awaken = false;
+}
+
+// renvoie true si c'est l'heure de distribuer les croquettes
+bool matchProg()
+{
+  for(int i=0; i<3; i++)
+  {
+    int p[2] = PROG[i];
+    if(HOUR == p[0] && MINUTE >= p[1] && MINUTE <= p[1]+5)
+    {
+      return true;
+    }
+  }
+  return false;
 }
 
 // tourne le moteur d'un quart de tour
