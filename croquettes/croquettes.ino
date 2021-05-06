@@ -15,8 +15,7 @@ RTC_DS1307 rtc_module;
 int HOUR;
 int MINUTE;
 // programmes de distribution
-int PROG_NONE[3][2] = {{-1, -1}, {-, -1}, {-1, -1}};
-int PROG[3][2];
+int PROG[3][2] = {{-1, -1}, {-1, -1}, {-1, -1}};
 int PROGAMOUNT;
 // instance du LCD
 LiquidCrystal_I2C lcd(0x27, 16, 2);
@@ -51,6 +50,7 @@ Menu menu;
 // menus
 Menu main_menu;
 Menu switch_menu;
+Menu setFreq_menu;
 Menu timeSetHr_menu;
 Menu timeSetMn_menu;
 
@@ -67,13 +67,14 @@ void main_ok(int sel)
       menu = switch_menu;
       menu.setTo(!dispensing);
       break;
+    case 1:
+      menu = setFreq_menu;
+      break;
     case 2:
       menu = timeSetHr_menu;
       menu.setTo(HOUR);
       menu.setUnit(":"+String(MINUTE));
       break;
-    default:
-      Serial.println(sel);
   }
 }
 
@@ -89,6 +90,16 @@ void switch_ok(int sel)
     dispensing = true;
   }
   menu = main_menu;
+}
+void switch_cancel()
+{
+  menu = main_menu;
+}
+
+String setFreq_options[3] = {"A", "B", "C"};
+void setFreq_ok(int sel)
+{
+  
 }
 
 // réglage de l'heure
@@ -129,12 +140,12 @@ void setup()
   stepper.setSpeed(64); // 1 RPM
 
   // programme par défaut
-  PROG = PROG_NONE;
   PROGAMOUNT = 1;
 
   // initialisation des menus
   main_menu.init_list("Menu principal", main_ok, doNothing, 3, main_options);
-  switch_menu.init_list("Distribution ...", switch_ok, doNothing, 2, switch_options);
+  switch_menu.init_list("Distribution ...", switch_ok, switch_cancel, 2, switch_options);
+  setFreq_menu.init_list("Frequence :", setFreq_ok, switch_cancel, 3, setFreq_options);
   timeSetHr_menu.init_spinner("Heure :", timeSetHr_ok, timeSet_cancel, 0, 23, 1, ":00", 2);
   timeSetMn_menu.init_spinner("Minutes :", timeSetMn_ok, timeSet_cancel, 0, 59, 1, "00:", 2);
   
@@ -145,7 +156,7 @@ void setup()
   standby();
 
   inactivity = 0;
-  lastdispense = 300;
+  lastDispense = 300;
 }
 
 // boucle
@@ -186,6 +197,7 @@ void loop()
       // passage en mode veille
       standby();
     }
+    lastDispense += 0.1;
     // MàJ de l'heure
     RTCgetTime();
     // boucle 10 fois par secondes
@@ -200,13 +212,20 @@ void loop()
     if(button!=lastButton)
     {
       // passage en mode actif
-      awake();
+      menu = main_menu;
+      menubuffer = 0;
       updateDisplay();
+      awake();
       inactivity = 0;
     }
     if(lastDispense > 300 && dispensing && matchProg())
     {
-      dispense(
+      dispense(PROGAMOUNT);
+      lastDispense = 0;
+    }
+    else
+    {
+      lastDispense += 1.0;
     }
     // MàJ l'heure
     RTCgetTime();
@@ -255,7 +274,7 @@ void updateDisplay()
   lcd.write(menu.leftSymbol());
   // sélection
   lcd.print(menu.content());
-  // au bou de la ligne : symbole droit
+  // au bout de la ligne : symbole droit
   lcd.setCursor(15, 1);
   lcd.write(menu.rightSymbol());
 }
@@ -293,8 +312,7 @@ bool matchProg()
 {
   for(int i=0; i<3; i++)
   {
-    int p[2] = PROG[i];
-    if(HOUR == p[0] && MINUTE >= p[1] && MINUTE <= p[1]+5)
+    if(HOUR == PROG[i][0] && MINUTE >= PROG[i][1] && MINUTE <= PROG[i][1]+5)
     {
       return true;
     }
@@ -319,6 +337,10 @@ void dispense(int amount)
   {
     rotate();
     delay(1000);
+  }
+  for(int pin=8; pin<=11; pin++)
+  {
+    digitalWrite(pin, LOW);
   }
   standby();
 }
