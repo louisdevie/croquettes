@@ -48,17 +48,21 @@ byte menubuffer;
 Menu menu;
 
 // menus
-Menu main_menu;
-Menu switch_menu;
-Menu setFreq_menu;
+Menu main_menu; // principal
+Menu switch_menu; // on/off
+Menu setFreq_menu;  
+Menu timeProgHr_menu;
+Menu timeProgMn_menu; 
+Menu setQty_menu; // programmation
 Menu timeSetHr_menu;
-Menu timeSetMn_menu;
+Menu timeSetMn_menu; // réglage heure
 
 // fonction d'anulation par défaut
+// bouche-trou
 void doNothing() {}
 
 // menu principal
-String main_options[3] = {"Activ./Desact.", "Programmer", "Reglage heure"};
+String main_options[4] = {"Activ./Desact.", "Programmer", "Quantite", "Reglage heure"};
 void main_ok(int sel)
 {
   switch(sel)
@@ -71,13 +75,18 @@ void main_ok(int sel)
       menu = setFreq_menu;
       break;
     case 2:
+      menu = setQty_menu;
+      menu.setTo(PROGAMOUNT*25);
+      break;
+    case 3:
       menu = timeSetHr_menu;
       menu.setTo(HOUR);
-      menu.setUnit(":"+String(MINUTE));
+      menu.setUnit("~:"+String(MINUTE));
       break;
   }
 }
 
+// menu pour desactiver/reactiver le distributeur occasionnellement
 String switch_options[2] = {"Activee", "Desactivee"};
 void switch_ok(int sel)
 {
@@ -96,10 +105,78 @@ void switch_cancel()
   menu = main_menu;
 }
 
-String setFreq_options[3] = {"A", "B", "C"};
+// frequence de distribution
 void setFreq_ok(int sel)
 {
-  
+  for(int i=sel; i<3; i++)
+  {
+    for(int j=0; j<2; j++)
+    {
+      PROG[i][j] = -1;
+    }
+  }
+  menubuffer = sel;
+  menu = timeProgHr_menu;
+  menu.setName("1ere - Heure :");
+  if(PROG[0][0]==-1)
+  {
+    menu.setTo(0);
+    menu.setUnit("~:00");
+  }
+  else
+  {
+    menu.setTo(PROG[0][0]);
+    menu.setUnit("~:"+String(PROG[0][1]));
+  }
+}
+// heure de la distribution
+void timeProgHr_ok(int sel)
+{
+  int n = menubuffer - 1;
+  PROG[n][0] = sel;
+  menu = timeProgMn_menu;
+  if(PROG[n][1]==-1)
+  {
+    menu.setTo(0);
+  }
+  else
+  {
+    menu.setTo(PROG[n][1]);
+  }
+  if(sel < 10) {menu.setUnit("0"+String(sel)+":~");}
+  else {menu.setUnit(String(sel)+":~");}
+}
+void timeProgMn_ok(int sel)
+{
+  int n = menubuffer - 1;
+  PROG[n][1] = sel;
+  if(menubuffer==1)
+  {
+    menu = main_menu;
+  }
+  else
+  {
+    n++; menubuffer--;
+    menu = timeProgHr_menu;
+    menu.setName(String(n+1) + "eme - Heure :");
+    if(PROG[n][0]==-1)
+    {
+      menu.setTo(0);
+      menu.setUnit("~:00");
+    }
+    else
+    {
+      menu.setTo(PROG[n][0]);
+      menu.setUnit("~:"+String(PROG[n][1]));
+    }
+  }
+}
+
+// choisir la quantité
+void setQty_ok(int sel)
+{
+  PROGAMOUNT = (int)(((float)sel)/25.0 + 0.5);
+  menu = main_menu;
 }
 
 // réglage de l'heure
@@ -108,8 +185,8 @@ void timeSetHr_ok(int sel)
   menubuffer = sel;
   menu = timeSetMn_menu;
   menu.setTo(MINUTE);
-  if(HOUR < 10) {menu.setUnit(String(menubuffer)+":", 2);}
-  else {menu.setUnit(String(menubuffer)+":", 3);}
+  if(sel < 10) {menu.setUnit("0"+String(sel)+":~");}
+  else {menu.setUnit(String(sel)+":~");}
 }
 void timeSet_cancel()
 {
@@ -145,9 +222,12 @@ void setup()
   // initialisation des menus
   main_menu.init_list("Menu principal", main_ok, doNothing, 3, main_options);
   switch_menu.init_list("Distribution ...", switch_ok, switch_cancel, 2, switch_options);
-  setFreq_menu.init_list("Frequence :", setFreq_ok, switch_cancel, 3, setFreq_options);
-  timeSetHr_menu.init_spinner("Heure :", timeSetHr_ok, timeSet_cancel, 0, 23, 1, ":00", 2);
-  timeSetMn_menu.init_spinner("Minutes :", timeSetMn_ok, timeSet_cancel, 0, 59, 1, "00:", 2);
+  setFreq_menu.init_spinner("Frequence :", setFreq_ok, switch_cancel, 1, 3, 1, "~ fois / jour");
+  timeProgHr_menu.init_spinner("Heure :", timeProgHr_ok, doNothing, 0, 23, 1, "~:00", 2);
+  timeProgMn_menu.init_spinner("Minutes :", timeProgMn_ok, doNothing, 0, 55, 5, "00:~", 2);
+  setQty_menu.init_spinner("Dose :", setQty_ok, switch_cancel, 25, 200, 25, " ~ g");
+  timeSetHr_menu.init_spinner("Heure :", timeSetHr_ok, timeSet_cancel, 0, 23, 1, "~:00", 2);
+  timeSetMn_menu.init_spinner("Minutes :", timeSetMn_ok, timeSet_cancel, 0, 59, 1, "00:~", 2);
   
   // démarrer sur le menu principal ...
   menu = main_menu;
@@ -218,8 +298,10 @@ void loop()
       awake();
       inactivity = 0;
     }
+    // 5min depuis la dernière distribution ET distibuteur activé ET heure de distribution
     if(lastDispense > 300 && dispensing && matchProg())
     {
+      // distribuer les croquettes
       dispense(PROGAMOUNT);
       lastDispense = 0;
     }
@@ -251,13 +333,13 @@ void RTCgetTime()
 // récupère les touches pressées
 int checkButtons()
 {
-  int val = analogRead(0);
-  if(val < 23) {return CANCEL;}
-  else if(val < 68) {return UP;}
-  else if(val < 111) {return ENTER;}
-  else if(val < 338) {return REST;}
-  else if(val < 785) {return DOWN;}
-  else {return REST;}
+  int val = analogRead(0); // pin A0
+  if(val < 23) {return CANCEL;} // bouton A
+  else if(val < 68) {return UP;} // bouton B
+  else if(val < 111) {return ENTER;} // bouton C
+  else if(val < 338) {return REST;} // bouton D
+  else if(val < 785) {return DOWN;} // bouton E
+  else {return REST;} // aucun
 }
 
 // màj le lcd
@@ -312,6 +394,7 @@ bool matchProg()
 {
   for(int i=0; i<3; i++)
   {
+    // même heure            marge de 5 minutes
     if(HOUR == PROG[i][0] && MINUTE >= PROG[i][1] && MINUTE <= PROG[i][1]+5)
     {
       return true;
@@ -323,7 +406,10 @@ bool matchProg()
 // tourne le moteur d'un quart de tour
 void rotate()
 {
-  for(int i=0; i<50; i++)
+  // 1 tour (moteur) = 30 pas
+  // réducteur x64 donc 1 tour (arbre de sortie) = 30 * 64 = 1920 pas
+  // donc 1/4 de tour (arbre de sortie) = 1920 / 4 = 480 pas
+  for(int i=0; i<48; i++)
   {
     stepper.step(10);
   }

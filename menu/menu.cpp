@@ -1,11 +1,15 @@
+// pour travailler avec arduino
 #include "Arduino.h"
 #include "menu.h"
 
-unsigned int LISTMENU = 0;
-unsigned int SPINNERMENU = 1;
+// type de menu
+int LISTMENU = 0;
+int SPINNERMENU = 1;
 
+// aucun paramètre lors de la création
 Menu::Menu() {}
 
+// initialisation en mode LISTE
 void Menu::init_list(String name, void (*f)(int), void (*g)(), int nb_choices, String choices[])
 {
 	_type = LISTMENU;
@@ -16,7 +20,8 @@ void Menu::init_list(String name, void (*f)(int), void (*g)(), int nb_choices, S
 	_choices = choices;
 }
 
-void Menu::init_spinner(String name, void (*f)(int), void (*g)(), int min, int max, int step, String unit, byte sep=0, int filldigits=0)
+// initialisation en mode DÉFILEMENT
+void Menu::init_spinner(String name, void (*f)(int), void (*g)(), int min, int max, int step, String unit, int filldigits=0)
 {
 	_type = SPINNERMENU;
 	_name = name;
@@ -24,32 +29,41 @@ void Menu::init_spinner(String name, void (*f)(int), void (*g)(), int min, int m
 	cancel = g;
 	_min = min; _max = max; _step = step;
 	_unit = unit;
-	_sep = sep;
 	_filldigits = filldigits;
 }
 
+// renvoie le nom du menu
 String Menu::title()
 {
 	return _name;
 }
 
+// renvoie la sélection actuelle du menu
 String Menu::content()
 {
 	if(_type == LISTMENU)
 	{
+		// option n° ...
 		return _choices[_current];
 	}
 	else if(_type == SPINNERMENU)
 	{
+		// représentation de la valeur actuelle
 		String currepr = String(_current);
+		// rajoute des zéros devant si nécéssaire
 		while(currepr.length()<_filldigits)
 		{
 			currepr = "0" + currepr;
 		}
-		return _unit.substring(0, _sep)+currepr+_unit.substring(_sep);
+		// copie ...
+		String formatted = _unit.substring(0);
+		// ... avec le ~ remplacé par la valeur
+		formatted.replace("~", currepr);
+		return formatted;
 	}
 }
 
+// quel symbole afficher à gauche, dépends du type de menu
 byte Menu::leftSymbol()
 {
 	if(_type == LISTMENU)
@@ -62,6 +76,7 @@ byte Menu::leftSymbol()
 	}
 }
 
+// quel symbole afficher à droite
 byte Menu::rightSymbol()
 {
 	if(_type == LISTMENU)
@@ -74,10 +89,12 @@ byte Menu::rightSymbol()
 	}
 }
 
+// haut
 void Menu::next()
 {
 	if(_type == LISTMENU)
 	{
+		// en mode LISTE, prends l'option précédente
 		if(_current > 0)
 		{
 			_current--;
@@ -87,6 +104,7 @@ void Menu::next()
 	}
 	else if(_type == SPINNERMENU)
 	{
+		// en mode DÉFILEMENT, incrémente
 		_current += _step;
 		if(_current > _max)
 		{
@@ -95,10 +113,12 @@ void Menu::next()
 	}
 }
 
+// bas
 void Menu::previous()
 {
 	if(_type == LISTMENU)
 	{
+		// en mode LISTE, prends l'option suivante
 		if(_current < _max-1)
 		{
 			_current++;
@@ -108,6 +128,7 @@ void Menu::previous()
 	}
 	else if(_type == SPINNERMENU)
 	{
+		// en mode DÉFILEMENT, décrémente
 		_current -= _step;
 		if(_current < _min)
 		{
@@ -116,18 +137,25 @@ void Menu::previous()
 	}
 }
 
+// changer la sélection par défaut
 void Menu::setTo(int v)
 {
 	_current = v;
 }
 
-void Menu::setUnit(String newunit, byte sep=0)
+// renommer le menu
+void Menu::setName(String name)
 {
-	_unit = newunit;
-	_sep = sep;
+	_name = name;
 }
 
+// changer l'unité
+void Menu::setUnit(String newunit)
+{
+	_unit = newunit;
+}
 
+// appeler la fonction de validation, avec la sélection actuelle
 void Menu::select()
 {
 	_action(_current);
